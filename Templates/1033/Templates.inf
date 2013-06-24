@@ -1,0 +1,18 @@
+readme.txt
+sample.txt
+[!if PLUG_IN_TYPE == 0]
+emptyMain.cpp
+[!endif]
+[!if PLUG_IN_TYPE == 1]
+simpleCmd.cpp
+[!endif]
+[!if PLUG_IN_TYPE == 2]
+complexCmd.h
+complexCmd.cpp
+complexCmdMain.cpp
+[!endif]
+[!if PLUG_IN_TYPE == 3]
+dgNode.h
+dgNode.cpp
+dgNodeMain.cpp
+[!endif]

@@ -1,0 +1,339 @@
+
+function OnFinish(selProj, selObj)
+{
+	try
+	{
+		var strProjectPath = wizard.FindSymbol('PROJECT_PATH');
+		var strProjectName = wizard.FindSymbol('PROJECT_NAME');
+
+		selProj = CreateCustomProject(strProjectName, strProjectPath);
+		AddConfig(selProj, strProjectName);
+		AddFilters(selProj);
+
+		var InfFile = CreateCustomInfFile();
+		// Now we want to add the appropriate files to the project
+		// based on the user's selections in the HTML Ui.
+		// See templates.inf file for the wizard directives which control
+		// which files must be added to the project based on the user selections.
+		AddFilesToCustomProj(selProj, strProjectName, strProjectPath, InfFile);
+		PchSettings(selProj);
+		InfFile.Delete();
+
+		selProj.Object.Save();
+	}
+	catch(e)
+	{
+		if (e.description.length != 0)
+			SetErrorInfo(e);
+		return e.number
+	}
+}
+
+function CreateCustomProject(strProjectName, strProjectPath)
+{
+	try
+	{
+		var strProjTemplatePath = wizard.FindSymbol('TEMPLATES_PATH');
+		var strProjTemplate = '';
+		strProjTemplate = strProjTemplatePath + '\\plugin.vcxproj';
+
+		var Solution = dte.Solution;
+		var strSolutionName = "";
+		if (wizard.FindSymbol("CLOSE_SOLUTION"))
+		{
+			Solution.Close();
+			strSolutionName = wizard.FindSymbol("VS_SOLUTION_NAME");
+			if (strSolutionName.length)
+			{
+				var strSolutionPath = strProjectPath.substr(0, strProjectPath.length - strProjectName.length);
+				Solution.Create(strSolutionPath, strSolutionName);
+			}
+		}
+
+		var strProjectNameWithExt = '';
+		strProjectNameWithExt = strProjectName + '.vcxproj';
+
+		var oTarget = wizard.FindSymbol("TARGET");
+		var prj;
+		if (wizard.FindSymbol("WIZARD_TYPE") == vsWizardAddSubProject)  // vsWizardAddSubProject
+		{
+			var prjItem = oTarget.AddFromTemplate(strProjTemplate, strProjectNameWithExt);
+			prj = prjItem.SubProject;
+		}
+		else
+		{
+			prj = oTarget.AddFromTemplate(strProjTemplate, strProjectPath, strProjectNameWithExt);
+		}
+		return prj;
+	}
+	catch(e)
+	{
+		throw e;
+	}
+}
+
+function AddFilters(proj)
+{
+	try
+	{
+		// Add the folders to your project
+		var group = proj.Object.AddFilter('Source Files');
+		group.Filter = "cpp";
+		var group2 = proj.Object.AddFilter('Header Files');
+		group2.Filter = "h";		
+		var group3 = proj.Object.AddFilter('Miscellaneous Files');
+		group3.Filter = "txt";				
+	}
+	catch(e)
+	{
+		throw e;
+	}
+}
+
+function AddConfig(proj, strProjectName)
+{
+	try
+	{
+		// Get required values from textboxes and checkboxes from
+		// the HTML Ui. These values reflect the user's selections.
+		//
+		var wantFoundationLib = wizard.FindSymbol('Check_Foundation');
+		var wantOpenMayaLib = wizard.FindSymbol('Check_OpenMaya');
+		var wantOpenMayaUILib = wizard.FindSymbol('Check_OpenMayaUI');
+		var wantOpenMayaAnimLib = wizard.FindSymbol('Check_OpenMayaAnim');
+		var wantOpenMayaFXLib = wizard.FindSymbol('Check_OpenMayaFX');
+		var wantOpenMayaRenderLib = wizard.FindSymbol('Check_OpenMayaRender');
+		var wantImageLib = wizard.FindSymbol('Check_Image');
+		var wantlibMocapLib = wizard.FindSymbol('Check_libMocap');
+		var wantOpenGL32Lib = wizard.FindSymbol('Check_OpenGL32');		
+		var strMayaLocation = wizard.FindSymbol('MAYA_LOCATION');
+		var strCommandName = wizard.FindSymbol('MAYA_TYPE_NAME');
+		var strAdditionalDependencies = "";
+		
+		// Now setup the compiler and linker settings for Debug
+		//				
+		var config = proj.Object.Configurations('Debug');
+		config.IntermediateDirectory = config.OutputDirectory;
+
+		var debugSettings = config.DebugSettings;
+		debugSettings.Command = strMayaLocation + '\\bin\\maya.exe';
+
+		// Compiler Settings
+		var CLTool = config.Tools('VCCLCompilerTool');
+		CLTool.AdditionalIncludeDirectories = '.;' + strMayaLocation + '\\include;%(AdditionalIncludeDirectories)';
+		CLTool.PrecompiledHeaderFile = config.IntermediateDirectory + strCommandName + '.pch';
+
+		// Linker Settings
+		var LinkTool = config.Tools('VCLinkerTool');
+		if (wantFoundationLib)
+			strAdditionalDependencies += 'Foundation.lib ';
+		if (wantOpenMayaLib)
+			strAdditionalDependencies += 'OpenMaya.lib ';
+		if (wantOpenMayaUILib)
+			strAdditionalDependencies += 'OpenMayaUI.lib ';
+		if (wantOpenMayaAnimLib)
+			strAdditionalDependencies += 'OpenMayaAnim.lib ';
+		if (wantOpenMayaFXLib)
+			strAdditionalDependencies += 'OpenMayaFX.lib ';
+		if (wantOpenMayaRenderLib)
+			strAdditionalDependencies += 'OpenMayaRender.lib ';
+		if (wantImageLib)
+			strAdditionalDependencies += 'Image.lib ';
+		if (wantlibMocapLib)
+			strAdditionalDependencies += 'libMocap.lib ';
+		if (wantOpenGL32Lib)
+			strAdditionalDependencies += 'OpenGL32.lib ';
+		
+		LinkTool.AdditionalDependencies = strAdditionalDependencies + ' %(AdditionalDependencies)';
+		LinkTool.AdditionalLibraryDirectories = strMayaLocation + '\\lib;%(AdditionalLibraryDirectories)';
+		LinkTool.OutputFile = config.OutputDirectory + strCommandName + '.mll';
+		LinkTool.ImportLibrary = config.OutputDirectory + strCommandName + '.lib';
+		LinkTool.ProgramDatabaseFile = config.IntermediateDirectory + strCommandName + '.pdb';
+		
+		// Now set the Release options for Compiling and Linking
+		//		
+		config = proj.Object.Configurations('Release');
+		config.IntermediateDirectory = config.OutputDirectory;
+
+		var CLTool = config.Tools('VCCLCompilerTool');
+		CLTool.AdditionalIncludeDirectories = '.;' + strMayaLocation + '\\include;%(AdditionalIncludeDirectories)';
+		CLTool.PrecompiledHeaderFile = config.IntermediateDirectory + strCommandName + '.pch';
+
+		var LinkTool = config.Tools('VCLinkerTool');
+		LinkTool.AdditionalDependencies = strAdditionalDependencies + ' %(AdditionalDependencies)';
+		LinkTool.AdditionalLibraryDirectories = strMayaLocation + '\\lib;%(AdditionalLibraryDirectories)';
+		LinkTool.OutputFile = config.OutputDirectory + strCommandName + '.mll';
+		LinkTool.ImportLibrary = config.OutputDirectory + strCommandName + '.lib';
+		LinkTool.ProgramDatabaseFile = config.IntermediateDirectory + strCommandName + '.pdb';
+	}
+	catch(e)
+	{
+		throw e;
+	}
+}
+
+function PchSettings(proj)
+{
+	// TODO: specify pch settings
+}
+
+function DelFile(fso, strWizTempFile)
+{
+	try
+	{
+		if (fso.FileExists(strWizTempFile))
+		{
+			var tmpFile = fso.GetFile(strWizTempFile);
+			tmpFile.Delete();
+		}
+	}
+	catch(e)
+	{
+		throw e;
+	}
+}
+
+function CreateCustomInfFile()
+{
+	try
+	{
+		var fso, TemplatesFolder, TemplateFiles, strTemplate;
+		fso = new ActiveXObject('Scripting.FileSystemObject');
+
+		var TemporaryFolder = 2;
+		var tfolder = fso.GetSpecialFolder(TemporaryFolder);
+		var strTempFolder = fso.GetAbsolutePathName(tfolder.Path);
+
+		var strWizTempFile = strTempFolder + "\\" + fso.GetTempName();
+
+		var strTemplatePath = wizard.FindSymbol('TEMPLATES_PATH');
+		var strInfFile = strTemplatePath + '\\Templates.inf';
+		wizard.RenderTemplate(strInfFile, strWizTempFile);
+
+		var WizTempFile = fso.GetFile(strWizTempFile);
+		return WizTempFile;
+	}
+	catch(e)
+	{
+		throw e;
+	}
+}
+
+function GetTargetName(strName, strProjectName)
+{
+	try
+	{
+		// TODO: set the name of the rendered file based on the template filename
+		var strTarget = strName;
+		var pluginName = wizard.FindSymbol('MAYA_TYPE_NAME');
+
+		switch (strName)
+		{
+			case "readme.txt":
+			{
+				strTarget = 'ReadMe.txt';
+				break;
+			}
+
+			case "sample.txt":
+			{
+				strTarget = 'Options.txt';
+				break;
+			}
+			
+			case "emptyMain.cpp":
+			{
+				strTarget = 'pluginMain.cpp';
+				break;
+			}
+			
+			case "simpleCmd.cpp":
+			{
+				strTarget = pluginName + 'Cmd.cpp';			
+				break;
+			}
+			
+			case "complexCmd.cpp":
+			{
+				strTarget = pluginName + 'Cmd.cpp';	
+				break;
+			}
+			
+			case "complexCmd.h":
+			{
+				strTarget = pluginName + 'Cmd.h';				
+				break;
+			}
+
+			case "complexCmdMain.cpp":
+			{
+				strTarget = 'pluginMain.cpp';
+				break;
+			}
+
+			case "dgNode.cpp":
+			{
+				strTarget = pluginName + 'Node.cpp';	
+				break;
+			}
+			
+			case "dgNode.h":
+			{
+				strTarget = pluginName + 'Node.h';				
+				break;
+			}
+
+			case "dgNodeMain.cpp":
+			{
+				strTarget = 'pluginMain.cpp';
+				break;
+			}
+
+			default:
+				break;
+		}
+		return strTarget; 
+	}
+	catch(e)
+	{
+		throw e;
+	}
+}
+
+function AddFilesToCustomProj(proj, strProjectName, strProjectPath, InfFile)
+{
+	try
+	{
+		var projItems = proj.ProjectItems
+
+		var strTemplatePath = wizard.FindSymbol('TEMPLATES_PATH');
+
+		var strTpl = '';
+		var strName = '';
+
+		var strTextStream = InfFile.OpenAsTextStream(1, -2);
+		while (!strTextStream.AtEndOfStream)
+		{
+			strTpl = strTextStream.ReadLine();
+			if (strTpl != '')
+			{
+				strName = strTpl;
+				var strTarget = GetTargetName(strName, strProjectName);
+				var strTemplate = strTemplatePath + '\\' + strTpl;
+				var strFile = strProjectPath + '\\' + strTarget;
+
+				var bCopyOnly = false;  //"true" will only copy the file from strTemplate to strTarget without rendering/adding to the project
+				var strExt = strName.substr(strName.lastIndexOf("."));
+				if(strExt==".bmp" || strExt==".ico" || strExt==".gif" || strExt==".rtf" || strExt==".css")
+					bCopyOnly = true;
+				wizard.RenderTemplate(strTemplate, strFile, bCopyOnly);
+				proj.Object.AddFile(strFile);
+			}
+		}
+		strTextStream.Close();
+	}
+	catch(e)
+	{
+		throw e;
+	}
+}

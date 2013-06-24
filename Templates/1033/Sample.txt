@@ -1,0 +1,51 @@
+//////////////////////////////////////////////////////////////////
+// Options.txt - These are the base options that you selected
+//////////////////////////////////////////////////////////////////
+
+You have selected to use Maya [!output MAYA_VERSION]
+
+Vendor Name is: [!output VENDOR_NAME]
+
+[!if USE_VERBOSE_COMMENTS]
+Verbose Comments ON
+[!else]
+Verbose Comments OFF
+[!endif]
+
+Plug-in type number (0-Empty, 1-MEL, 2-MEL w/Undo, 3-DG Node)
+[!output PLUG_IN_TYPE]
+
+Maya Type Name (Plug-in Name)
+[!output MAYA_TYPE_NAME]
+
+Included Libraries:
+[!if Check_Foundation]
+Foundation
+[!endif]
+[!if Check_OpenMaya]
+OpenMaya
+[!endif]
+[!if Check_OpenMayaUI]
+OpenMayaUI
+[!endif]
+[!if Check_OpenMayaAnim]
+OpenMayaAnim
+[!endif]
+[!if Check_OpenMayaFX]
+OpenMayaFX
+[!endif]
+[!if Check_OpenMayaRender]
+OpenMayaRender
+[!endif]
+[!if Check_Image]
+Image
+[!endif]
+[!if Check_libMocap]
+libMocap
+[!endif]
+[!if Check_libMDtAPI]
+libMDtAPI
+[!endif]
+[!if Check_OpenGL32]
+OpenGL32
+[!endif]
